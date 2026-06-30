@@ -1,0 +1,1149 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 판매가 책정 검증 - 최적 견적 산출 툴</title>
+    <script src="xlsx.bundle.js"></script>
+    <script>
+        // 라이브러리 로드 확인
+        window.addEventListener('load', function() {
+            if (typeof XLSX === 'undefined') {
+                alert('라이브러리 로드 실패. xlsx.bundle.js 파일이 같은 폴더에 있는지 확인해주세요.');
+            }
+        });
+    </script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            padding: 30px;
+            color: #e0e0e0;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            color: #4fc3f7;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            font-size: 14px;
+            color: #90a4ae;
+        }
+
+        .section {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 30px;
+            margin-bottom: 24px;
+            backdrop-filter: blur(10px);
+            position: relative;
+        }
+
+        .section-title {
+            font-size: 18px;
+            color: #4fc3f7;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(79, 195, 247, 0.3);
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group label {
+            font-size: 13px;
+            color: #b0bec5;
+            margin-bottom: 6px;
+            font-weight: 500;
+        }
+
+        .form-group input,
+        .form-group select {
+            padding: 10px 14px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.08);
+            color: #ffffff;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #4fc3f7;
+            background: rgba(79, 195, 247, 0.1);
+            box-shadow: 0 0 0 3px rgba(79, 195, 247, 0.1);
+        }
+
+        .form-group input::placeholder {
+            color: #607d8b;
+        }
+
+        .form-group select option {
+            background: #1a1a2e;
+            color: #e0e0e0;
+        }
+
+        /* 템플릿 다운로드 버튼 */
+        .btn-template {
+            position: absolute;
+            top: 24px;
+            right: 30px;
+            padding: 8px 16px;
+            font-size: 13px;
+            font-weight: 500;
+            color: #4fc3f7;
+            background: rgba(79, 195, 247, 0.1);
+            border: 1px solid rgba(79, 195, 247, 0.4);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-template:hover {
+            background: rgba(79, 195, 247, 0.2);
+            border-color: #4fc3f7;
+            color: #ffffff;
+        }
+
+        /* 엑셀 업로드 영역 */
+        .upload-area {
+            border: 2px dashed rgba(79, 195, 247, 0.4);
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .upload-area:hover,
+        .upload-area.drag-over {
+            border-color: #4fc3f7;
+            background: rgba(79, 195, 247, 0.08);
+        }
+
+        .upload-area.drag-over {
+            transform: scale(1.01);
+        }
+
+        .upload-icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+        }
+
+        .upload-text {
+            font-size: 16px;
+            color: #b0bec5;
+            margin-bottom: 8px;
+        }
+
+        .upload-sub {
+            font-size: 13px;
+            color: #607d8b;
+        }
+
+        .upload-input {
+            display: none;
+        }
+
+        .file-info {
+            margin-top: 16px;
+            padding: 12px 16px;
+            background: rgba(76, 175, 80, 0.15);
+            border: 1px solid rgba(76, 175, 80, 0.3);
+            border-radius: 8px;
+            display: none;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .file-info.show {
+            display: flex;
+        }
+
+        .file-info .file-name {
+            color: #81c784;
+            font-size: 14px;
+        }
+
+        .file-info .file-remove {
+            margin-left: auto;
+            color: #ef5350;
+            cursor: pointer;
+            font-size: 18px;
+        }
+
+        .file-info .file-remove:hover {
+            color: #f44336;
+        }
+
+        /* 버튼 */
+        .btn-area {
+            text-align: center;
+            margin-top: 30px;
+        }
+
+        .btn-submit {
+            padding: 14px 48px;
+            font-size: 16px;
+            font-weight: 600;
+            color: #ffffff;
+            background: linear-gradient(135deg, #4fc3f7, #0288d1);
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(79, 195, 247, 0.3);
+        }
+
+        .btn-submit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(79, 195, 247, 0.4);
+        }
+
+        .btn-submit:active {
+            transform: translateY(0);
+        }
+
+        /* 수주고객사 정보 테이블 */
+        .info-tbl {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        .info-tbl th {
+            background: rgba(79, 195, 247, 0.15);
+            color: #90caf9;
+            padding: 10px 12px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        .info-tbl td {
+            padding: 10px 12px;
+            color: #ffffff;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            text-align: center;
+        }
+
+        /* 조회 버튼 */
+        .btn-lookup {
+            padding: 10px 20px;
+            font-size: 14px;
+            font-weight: 500;
+            color: #ffffff;
+            background: linear-gradient(135deg, #66bb6a, #388e3c);
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            align-self: flex-end;
+        }
+
+        .btn-lookup:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(76, 175, 80, 0.4);
+        }
+
+        /* 산업군 통계 박스 */
+        .industry-stats {
+            display: none;
+            margin-top: 20px;
+            padding: 20px;
+            background: rgba(76, 175, 80, 0.08);
+            border: 1px solid rgba(76, 175, 80, 0.3);
+            border-radius: 12px;
+        }
+
+        .industry-stats.show {
+            display: block;
+        }
+
+        .industry-stats-title {
+            font-size: 14px;
+            color: #81c784;
+            margin-bottom: 12px;
+            font-weight: 600;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 12px;
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: 10px 6px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .stat-item .stat-label {
+            font-size: 11px;
+            color: #90a4ae;
+            margin-bottom: 6px;
+            line-height: 1.3;
+        }
+
+        .stat-item .stat-value {
+            font-size: 18px;
+            font-weight: 700;
+            color: #4fc3f7;
+        }
+
+        /* EBITDA 시나리오 */
+        .scenario-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+        }
+
+        .scenario-item {
+            text-align: center;
+            padding: 16px;
+            border-radius: 10px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .scenario-item.strategic {
+            background: rgba(244, 67, 54, 0.1);
+            border-color: rgba(244, 67, 54, 0.3);
+        }
+
+        .scenario-item.average {
+            background: rgba(255, 152, 0, 0.1);
+            border-color: rgba(255, 152, 0, 0.3);
+        }
+
+        .scenario-item.confident {
+            background: rgba(76, 175, 80, 0.1);
+            border-color: rgba(76, 175, 80, 0.3);
+        }
+
+        .scenario-label {
+            font-size: 14px;
+            font-weight: 600;
+            color: #e0e0e0;
+            margin-bottom: 10px;
+        }
+
+        .scenario-input-wrap {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+        }
+
+        .scenario-input {
+            width: 70px;
+            padding: 8px 10px;
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 6px;
+            background: rgba(255,255,255,0.08);
+            color: #ffffff;
+            font-size: 16px;
+            text-align: center;
+        }
+
+        .scenario-input:focus {
+            outline: none;
+            border-color: #4fc3f7;
+        }
+
+        .scenario-input-wrap span {
+            color: #90a4ae;
+            font-size: 14px;
+        }
+
+        /* 반응형 */
+        @media (max-width: 768px) {
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+            .stats-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+            .scenario-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 헤더 -->
+        <div class="header">
+            <h1>🤖 AI 판매가 책정 검증 툴</h1>
+            <p>수익성 관점에서 최적의 견적가를 산출합니다</p>
+        </div>
+
+        <!-- 기본 정보 입력 섹션 -->
+        <div class="section">
+            <div class="section-title">📋 기본 정보 입력</div>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>법인명</label>
+                    <input type="text" id="companyName" placeholder="법인명 입력">
+                </div>
+                <div class="form-group">
+                    <label>산업군</label>
+                    <select id="industry">
+                        <option value="">선택하세요</option>
+                        <option value="전자">ㄱ. 전자</option>
+                        <option value="화학">ㄴ. 화학</option>
+                        <option value="식음료">ㄷ. 식음료</option>
+                        <option value="자동차">ㄹ. 자동차</option>
+                        <option value="서비스">ㅁ. 서비스</option>
+                        <option value="건설">ㅂ. 건설</option>
+                        <option value="제약">ㅅ. 제약</option>
+                        <option value="유통/물류">ㅇ. 유통/물류</option>
+                        <option value="기계/금속">ㅈ. 기계/금속</option>
+                        <option value="대학">ㅊ. 대학</option>
+                        <option value="제지/목재">ㅌ. 제지/목재</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>사업자번호</label>
+                    <input type="text" id="bizNumber" placeholder="000-00-00000">
+                </div>
+                <div class="form-group">
+                    <label>매출 (PT)</label>
+                    <input type="number" id="revenue" placeholder="매출액 입력">
+                </div>
+                <div class="form-group">
+                    <label>매입</label>
+                    <input type="number" id="cost" placeholder="매입액 입력">
+                </div>
+                <div class="form-group">
+                    <label>고정비 (%)</label>
+                    <input type="number" id="fixedCost" placeholder="예: 5" step="0.1">
+                </div>
+                <div class="form-group">
+                    <label>변동비 (%)</label>
+                    <input type="number" id="variableCost" placeholder="예: 3" step="0.1">
+                </div>
+                <div class="form-group">
+                    <label>결제조건</label>
+                    <select id="paymentTerms" onchange="toggleCustomPayment(this)">
+                        <option value="">선택하세요</option>
+                        <option value="월말 30일">월말 30일</option>
+                        <option value="월말 60일">월말 60일</option>
+                        <option value="월말 90일">월말 90일</option>
+                        <option value="월말 120일">월말 120일</option>
+                        <option value="custom">직접기재</option>
+                    </select>
+                    <input type="text" id="paymentTermsCustom" placeholder="결제조건 직접 입력" style="display:none; margin-top:8px;">
+                </div>
+                <div class="form-group">
+                    <label>기준 배부전 EBITDA (%)</label>
+                    <input type="number" id="targetEbitda" placeholder="예: 2.5" step="0.1" value="2.5">
+                </div>
+                <div class="form-group">
+                    <label>수주 형태</label>
+                    <select id="orderType">
+                        <option value="">선택하세요</option>
+                        <option value="수의">수의</option>
+                        <option value="입찰">입찰</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>계약유형</label>
+                    <select id="contractType">
+                        <option value="">선택하세요</option>
+                        <option value="① 매출 3천억 이상">① 매출 3천억 이상</option>
+                        <option value="② 상호출자제한기업집단 및 계열사">② 상호출자제한기업집단 및 계열사</option>
+                        <option value="③ 1차 협력사">③ 1차 협력사</option>
+                        <option value="④ 전문 MRO 분야 특정 소모성자재 거래(제약/빌딩관리)">④ 전문 MRO 분야 특정 소모성자재 거래</option>
+                        <option value="⑤ 외국인 투자 기업">⑤ 외국인 투자 기업</option>
+                        <option value="⑥ 관계사 통합 구매">⑥ 관계사 통합 구매</option>
+                        <option value="⑦ 비영리단체(대학/산학 등)">⑦ 비영리단체(대학/산학 등)</option>
+                        <option value="⑧ 대기업 MRO社 전환">⑧ 대기업 MRO社 전환</option>
+                        <option value="⑨ 공공기관(공기업, 출자회사)">⑨ 공공기관(공기업, 출자회사)</option>
+                        <option value="⑩ 상생협약 비대상">⑩ 상생협약 비대상</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>&nbsp;</label>
+                    <button class="btn-lookup" id="btnLookup">🔍 산업군 통계 조회</button>
+                </div>
+            </div>
+            <!-- EBITDA 시나리오 (기본정보 안에 구분선 포함) -->
+            <div style="margin-top:20px; padding-top:16px; border-top:1px dashed rgba(79,195,247,0.3);">
+                <div style="font-size:13px; color:#90a4ae; margin-bottom:10px; font-weight:500;">🎯 EBITDA 시나리오</div>
+                <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:12px;">
+                    <div style="display:flex; align-items:center; gap:8px; padding:8px 12px; background:rgba(244,67,54,0.08); border:1px solid rgba(244,67,54,0.25); border-radius:8px;">
+                        <span style="font-size:12px; color:#ef9a9a;">전략적 견적</span>
+                        <input type="number" id="ebitdaStrategic" value="0" step="0.1" style="width:50px; padding:4px 6px; border:1px solid rgba(255,255,255,0.15); border-radius:4px; background:rgba(255,255,255,0.08); color:#fff; font-size:13px; text-align:center;">
+                        <span style="font-size:12px; color:#607d8b;">%</span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px; padding:8px 12px; background:rgba(255,152,0,0.08); border:1px solid rgba(255,152,0,0.25); border-radius:8px;">
+                        <span style="font-size:12px; color:#ffcc80;">평균 견적</span>
+                        <input type="number" id="ebitdaAverage" value="2.5" step="0.1" style="width:50px; padding:4px 6px; border:1px solid rgba(255,255,255,0.15); border-radius:4px; background:rgba(255,255,255,0.08); color:#fff; font-size:13px; text-align:center;">
+                        <span style="font-size:12px; color:#607d8b;">%</span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px; padding:8px 12px; background:rgba(76,175,80,0.08); border:1px solid rgba(76,175,80,0.25); border-radius:8px;">
+                        <span style="font-size:12px; color:#a5d6a7;">소신 견적</span>
+                        <input type="number" id="ebitdaConfident" value="5" step="0.1" style="width:50px; padding:4px 6px; border:1px solid rgba(255,255,255,0.15); border-radius:4px; background:rgba(255,255,255,0.08); color:#fff; font-size:13px; text-align:center;">
+                        <span style="font-size:12px; color:#607d8b;">%</span>
+                    </div>
+                </div>
+            </div>
+            <!-- 산업군 통계 결과 -->
+            <div class="industry-stats" id="industryStats">
+                <div class="industry-stats-title">📊 산업군 통계 조회 결과</div>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-label">기존 산업군<br>평균 GP</div>
+                        <div class="stat-value">8%</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">기존 산업군<br>평균 CM</div>
+                        <div class="stat-value">6%</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">기존 산업군<br>평균 EBITDA</div>
+                        <div class="stat-value">4%</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">산업군<br>수주성공평균 GP</div>
+                        <div class="stat-value">4%</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">산업군<br>수주성공평균 CM</div>
+                        <div class="stat-value">3%</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">산업군<br>수주성공평균 EBITDA</div>
+                        <div class="stat-value">2.50%</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 수주고객사 정보 + 견적 파일 업로드 (2열 배치) -->
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:24px; margin-bottom:24px;">
+            <!-- 좌측: 수주고객사 정보 -->
+            <div class="section" style="margin-bottom:0;">
+                <div class="section-title">🏢 수주고객사 정보</div>
+                <div class="info-table" id="companyInfoBox" style="display:none;">
+                    <table class="info-tbl">
+                        <tr>
+                            <th>수주고객사 법인명</th>
+                            <td id="infoCompany"></td>
+                        </tr>
+                        <tr>
+                            <th>산업군</th>
+                            <td id="infoIndustry"></td>
+                        </tr>
+                        <tr>
+                            <th>매출액</th>
+                            <td>7,488억원</td>
+                        </tr>
+                        <tr>
+                            <th>순이익</th>
+                            <td>-1,342억원</td>
+                        </tr>
+                        <tr>
+                            <th>신용등급 / 현금흐름등급</th>
+                            <td>B0/CF4</td>
+                        </tr>
+                        <tr>
+                            <th>수주 형태</th>
+                            <td id="infoOrderType"></td>
+                        </tr>
+                        <tr>
+                            <th>1)계약 유형</th>
+                            <td id="infoContractType"></td>
+                        </tr>
+                    </table>
+                </div>
+                <div id="companyInfoEmpty" style="text-align:center; color:#607d8b; padding:20px; font-size:13px;">기본정보 입력 후 "산업군 통계 조회" 버튼을 누르면 표시됩니다.</div>
+            </div>
+
+            <!-- 우측: 견적 파일 업로드 -->
+            <div class="section" style="margin-bottom:0;">
+                <div class="section-title">📎 견적 파일 업로드</div>
+                <button class="btn-template" id="btnTemplate">⬇ 템플릿 다운로드</button>
+                <div class="upload-area" id="uploadArea" style="padding:24px;">
+                    <div class="upload-icon" style="font-size:36px;">📄</div>
+                    <div class="upload-text" style="font-size:14px;">엑셀 파일을 드래그하거나 클릭하세요</div>
+                    <div class="upload-sub">지원 형식: .xlsx, .xls, .csv</div>
+                    <input type="file" class="upload-input" id="fileInput" accept=".xlsx,.xls,.csv">
+                </div>
+                <div class="file-info" id="fileInfo">
+                    <span>📎</span>
+                    <span class="file-name" id="fileName"></span>
+                    <span class="file-remove" id="fileRemove">✕</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 분석 버튼 -->
+        <div class="btn-area">
+            <button class="btn-submit" id="btnAnalyze">🔍 AI 견적 분석 시작</button>
+        </div>
+    </div>
+
+    <script>
+        // ========== 산업군 통계 조회 버튼 ==========
+        document.getElementById('btnLookup').addEventListener('click', () => {
+            const industry = document.getElementById('industry').value;
+            if (!industry) {
+                alert('산업군을 먼저 선택해주세요.');
+                return;
+            }
+            const statsEl = document.getElementById('industryStats');
+            statsEl.classList.toggle('show');
+
+            // 수주고객사 정보 박스 표시
+            const companyName = document.getElementById('companyName').value || '-';
+            const bizNumber = document.getElementById('bizNumber').value || '-';
+            const orderType = document.getElementById('orderType').value || '-';
+            const contractType = document.getElementById('contractType').value || '-';
+
+            document.getElementById('infoCompany').textContent = `${companyName}(${bizNumber})`;
+            document.getElementById('infoIndustry').textContent = industry;
+            document.getElementById('infoOrderType').textContent = orderType;
+            document.getElementById('infoContractType').textContent = contractType;
+
+            document.getElementById('companyInfoBox').style.display = statsEl.classList.contains('show') ? 'block' : 'none';
+            document.getElementById('companyInfoEmpty').style.display = statsEl.classList.contains('show') ? 'none' : 'block';
+        });
+
+        // ========== 템플릿 다운로드 (Excel) ==========
+        document.getElementById('btnTemplate').addEventListener('click', (e) => {
+            e.stopPropagation();
+
+            const headers = [
+                '수량',
+                '대체품/동일품 구분',
+                '거래유형(유형에 해당할 경우 기입)',
+                '기등록 상품ID',
+                '상품명',
+                '규격',
+                '주문단위',
+                '최소발주수량',
+                '매입가',
+                '매입금액',
+                '보정매입가',
+                '보정매입금액',
+                '제조원ID',
+                '제조원',
+                '원산지',
+                '협력사 등록여부',
+                '정예협력사 여부',
+                '정예협력사 구분',
+                '견적협력사 ID',
+                '견적협력사명',
+                '유통단계',
+                '배송형태'
+            ];
+
+            // 워크북 생성
+            const wb = XLSX.utils.book_new();
+            const wsData = [headers];
+            // 100행까지 빈 행 추가
+            for (let i = 1; i < 100; i++) {
+                wsData.push(new Array(22).fill(''));
+            }
+            const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+            // 스타일 정의
+            const headerStyle = {
+                font: { bold: true, color: { rgb: 'FFFFFF' }, sz: 11 },
+                fill: { fgColor: { rgb: '1565C0' } },
+                alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
+                border: {
+                    top: { style: 'thin', color: { rgb: '000000' } },
+                    bottom: { style: 'thin', color: { rgb: '000000' } },
+                    left: { style: 'thin', color: { rgb: '000000' } },
+                    right: { style: 'thin', color: { rgb: '000000' } }
+                }
+            };
+
+            const cellBorder = {
+                border: {
+                    top: { style: 'thin', color: { rgb: '000000' } },
+                    bottom: { style: 'thin', color: { rgb: '000000' } },
+                    left: { style: 'thin', color: { rgb: '000000' } },
+                    right: { style: 'thin', color: { rgb: '000000' } }
+                },
+                alignment: { vertical: 'center' }
+            };
+
+            // 바깥 테두리 (medium) 스타일
+            const outerTopLeft = {
+                border: {
+                    top: { style: 'medium', color: { rgb: '000000' } },
+                    left: { style: 'medium', color: { rgb: '000000' } },
+                    bottom: { style: 'thin', color: { rgb: '000000' } },
+                    right: { style: 'thin', color: { rgb: '000000' } }
+                },
+                alignment: { vertical: 'center' }
+            };
+            const outerTopRight = {
+                border: {
+                    top: { style: 'medium', color: { rgb: '000000' } },
+                    right: { style: 'medium', color: { rgb: '000000' } },
+                    bottom: { style: 'thin', color: { rgb: '000000' } },
+                    left: { style: 'thin', color: { rgb: '000000' } }
+                },
+                alignment: { vertical: 'center' }
+            };
+            const outerLeft = {
+                border: {
+                    left: { style: 'medium', color: { rgb: '000000' } },
+                    top: { style: 'thin', color: { rgb: '000000' } },
+                    bottom: { style: 'thin', color: { rgb: '000000' } },
+                    right: { style: 'thin', color: { rgb: '000000' } }
+                },
+                alignment: { vertical: 'center' }
+            };
+            const outerRight = {
+                border: {
+                    right: { style: 'medium', color: { rgb: '000000' } },
+                    top: { style: 'thin', color: { rgb: '000000' } },
+                    bottom: { style: 'thin', color: { rgb: '000000' } },
+                    left: { style: 'thin', color: { rgb: '000000' } }
+                },
+                alignment: { vertical: 'center' }
+            };
+            const outerBottomLeft = {
+                border: {
+                    bottom: { style: 'medium', color: { rgb: '000000' } },
+                    left: { style: 'medium', color: { rgb: '000000' } },
+                    top: { style: 'thin', color: { rgb: '000000' } },
+                    right: { style: 'thin', color: { rgb: '000000' } }
+                },
+                alignment: { vertical: 'center' }
+            };
+            const outerBottomRight = {
+                border: {
+                    bottom: { style: 'medium', color: { rgb: '000000' } },
+                    right: { style: 'medium', color: { rgb: '000000' } },
+                    top: { style: 'thin', color: { rgb: '000000' } },
+                    left: { style: 'thin', color: { rgb: '000000' } }
+                },
+                alignment: { vertical: 'center' }
+            };
+            const outerBottom = {
+                border: {
+                    bottom: { style: 'medium', color: { rgb: '000000' } },
+                    top: { style: 'thin', color: { rgb: '000000' } },
+                    left: { style: 'thin', color: { rgb: '000000' } },
+                    right: { style: 'thin', color: { rgb: '000000' } }
+                },
+                alignment: { vertical: 'center' }
+            };
+            const outerTop = {
+                border: {
+                    top: { style: 'medium', color: { rgb: '000000' } },
+                    bottom: { style: 'thin', color: { rgb: '000000' } },
+                    left: { style: 'thin', color: { rgb: '000000' } },
+                    right: { style: 'thin', color: { rgb: '000000' } }
+                },
+                alignment: { vertical: 'center' }
+            };
+
+            // 헤더 스타일 적용 (1행, A~V)
+            for (let c = 0; c < 22; c++) {
+                const cellRef = XLSX.utils.encode_cell({ r: 0, c: c });
+                if (!ws[cellRef]) ws[cellRef] = { v: '', t: 's' };
+                ws[cellRef].s = headerStyle;
+            }
+
+            // 데이터 영역 스타일 적용 (2~100행, A~V) + 바깥 테두리
+            for (let r = 1; r < 100; r++) {
+                for (let c = 0; c < 22; c++) {
+                    const cellRef = XLSX.utils.encode_cell({ r: r, c: c });
+                    if (!ws[cellRef]) ws[cellRef] = { v: '', t: 's' };
+
+                    // 바깥 테두리 판정
+                    const isTop = (r === 1);
+                    const isBottom = (r === 99);
+                    const isLeft = (c === 0);
+                    const isRight = (c === 21);
+
+                    if (isBottom && isLeft) {
+                        ws[cellRef].s = outerBottomLeft;
+                    } else if (isBottom && isRight) {
+                        ws[cellRef].s = outerBottomRight;
+                    } else if (isBottom) {
+                        ws[cellRef].s = outerBottom;
+                    } else if (isLeft) {
+                        ws[cellRef].s = outerLeft;
+                    } else if (isRight) {
+                        ws[cellRef].s = outerRight;
+                    } else {
+                        ws[cellRef].s = cellBorder;
+                    }
+                }
+            }
+
+            // 열 너비 설정 (한눈에 볼 수 있도록 축소)
+            ws['!cols'] = [
+                { wch: 6 },   // 수량
+                { wch: 10 },  // 대체품/동일품 구분
+                { wch: 12 },  // 거래유형
+                { wch: 10 },  // 기등록 상품ID
+                { wch: 14 },  // 상품명
+                { wch: 10 },  // 규격
+                { wch: 8 },   // 주문단위
+                { wch: 8 },   // 최소발주수량
+                { wch: 9 },   // 매입가
+                { wch: 9 },   // 매입금액
+                { wch: 9 },   // 보정매입가
+                { wch: 9 },   // 보정매입금액
+                { wch: 9 },   // 제조원ID
+                { wch: 10 },  // 제조원
+                { wch: 7 },   // 원산지
+                { wch: 10 },  // 협력사 등록여부
+                { wch: 10 },  // 정예협력사 여부
+                { wch: 10 },  // 정예협력사 구분
+                { wch: 10 },  // 견적협력사 ID
+                { wch: 10 },  // 견적협력사명
+                { wch: 8 },   // 유통단계
+                { wch: 8 },   // 배송형태
+            ];
+
+            // 범위 설정
+            ws['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: 99, c: 21 } });
+
+            XLSX.utils.book_append_sheet(wb, ws, '견적');
+
+            // Blob 방식 다운로드
+            var wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+            var blob = new Blob([wbout], { type: 'application/octet-stream' });
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = '견적_템플릿.xlsx';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        });
+
+        // ========== 엑셀 파일 업로드 로직 ==========
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const fileInfo = document.getElementById('fileInfo');
+        const fileName = document.getElementById('fileName');
+        const fileRemove = document.getElementById('fileRemove');
+
+        // 클릭으로 파일 선택
+        uploadArea.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        // 파일 선택 시
+        fileInput.addEventListener('change', (e) => {
+            handleFile(e.target.files[0]);
+        });
+
+        // 드래그 앤 드롭
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('drag-over');
+        });
+
+        uploadArea.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('drag-over');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('drag-over');
+            const file = e.dataTransfer.files[0];
+            if (file) {
+                handleFile(file);
+            }
+        });
+
+        // 파일 처리
+        function handleFile(file) {
+            if (!file) return;
+            const ext = file.name.split('.').pop().toLowerCase();
+            if (!['xlsx', 'xls', 'csv'].includes(ext)) {
+                alert('엑셀 파일(.xlsx, .xls, .csv)만 업로드 가능합니다.');
+                return;
+            }
+            fileName.textContent = `${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+            fileInfo.classList.add('show');
+        }
+
+        // 파일 삭제
+        fileRemove.addEventListener('click', () => {
+            fileInput.value = '';
+            fileInfo.classList.remove('show');
+            fileName.textContent = '';
+        });
+
+        // ========== 사업자번호 포맷 ==========
+        document.getElementById('bizNumber').addEventListener('input', function (e) {
+            let value = e.target.value.replace(/[^0-9]/g, '');
+            if (value.length > 10) value = value.slice(0, 10);
+            if (value.length > 5) {
+                value = value.slice(0, 3) + '-' + value.slice(3, 5) + '-' + value.slice(5);
+            } else if (value.length > 3) {
+                value = value.slice(0, 3) + '-' + value.slice(3);
+            }
+            e.target.value = value;
+        });
+
+        // ========== 결제조건 직접기재 토글 ==========
+        function toggleCustomPayment(select) {
+            const customInput = document.getElementById('paymentTermsCustom');
+            if (select.value === 'custom') {
+                customInput.style.display = 'block';
+                customInput.focus();
+            } else {
+                customInput.style.display = 'none';
+                customInput.value = '';
+            }
+        }
+
+        // ========== 자동 저장 (LocalStorage) ==========
+        const formFields = ['companyName', 'industry', 'bizNumber', 'revenue', 'cost', 'fixedCost', 'variableCost', 'paymentTerms', 'paymentTermsCustom', 'targetEbitda', 'orderType', 'contractType'];
+
+        // 저장된 값 불러오기
+        formFields.forEach(id => {
+            const saved = localStorage.getItem('quote_' + id);
+            if (saved) {
+                document.getElementById(id).value = saved;
+            } else if (id === 'targetEbitda') {
+                document.getElementById(id).value = '2.5';
+            }
+        });
+        // 직접기재 필드 복원
+        if (document.getElementById('paymentTerms').value === 'custom') {
+            document.getElementById('paymentTermsCustom').style.display = 'block';
+        }
+
+        // 입력 시 자동 저장
+        formFields.forEach(id => {
+            const el = document.getElementById(id);
+            el.addEventListener('input', () => {
+                localStorage.setItem('quote_' + id, el.value);
+            });
+            el.addEventListener('change', () => {
+                localStorage.setItem('quote_' + id, el.value);
+            });
+        });
+
+        // ========== 분석 버튼 (3개 시트: 평균/전략적/소신) ==========
+        document.getElementById('btnAnalyze').addEventListener('click', () => {
+            const companyName = document.getElementById('companyName').value;
+            const industry = document.getElementById('industry').value;
+            const revenue = document.getElementById('revenue').value;
+            const cost = document.getElementById('cost').value;
+
+            if (!companyName || !industry || !revenue || !cost) {
+                alert('필수 항목(법인명, 산업군, 매출, 매입)을 입력해주세요.');
+                return;
+            }
+            if (!fileInput.files || !fileInput.files[0]) {
+                alert('견적 파일을 업로드해주세요.');
+                return;
+            }
+
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                const data = new Uint8Array(evt.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const sheetName = workbook.SheetNames[0];
+                const sheet = workbook.Sheets[sheetName];
+                const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+                if (jsonData.length < 2) {
+                    alert('데이터가 없습니다. 템플릿에 데이터를 입력 후 업로드해주세요.');
+                    return;
+                }
+
+                const fixedCostPct = parseFloat(document.getElementById('fixedCost').value) || 0;
+                const variableCostPct = parseFloat(document.getElementById('variableCost').value) || 0;
+                const ebitdaStrategic = parseFloat(document.getElementById('ebitdaStrategic').value) || 0;
+                const ebitdaAverage = parseFloat(document.getElementById('ebitdaAverage').value) || 2.5;
+                const ebitdaConfident = parseFloat(document.getElementById('ebitdaConfident').value) || 5;
+
+                const originalHeaders = jsonData[0];
+                const resultWb = XLSX.utils.book_new();
+
+                const demoData = [
+                    { minPurchase: 490000, industryMin: 980000, opinion: '무재고->직송 검토', savings: 196000 },
+                    { minPurchase: 2300000, industryMin: 2820000, opinion: '기등록ID의 최저가가 아님', savings: 5000000 },
+                    { minPurchase: 12700, industryMin: 44450, opinion: 'MOQ 상향 검토(발주수량 대비 객단가 낮음)', savings: 200000 },
+                    { minPurchase: 110000, industryMin: 495000, opinion: '', savings: 0 },
+                    { minPurchase: 100000, industryMin: 600000, opinion: '', savings: 0 },
+                    { minPurchase: 4450000, industryMin: 5117500, opinion: '유통단계 검토', savings: 500000 },
+                    { minPurchase: 390000, industryMin: 916500, opinion: '', savings: 0 },
+                    { minPurchase: 54000, industryMin: 594000, opinion: '협력사통합 검토(제조원ID가 같으나, 협력사가 상이)', savings: 30000 },
+                    { minPurchase: 54000, industryMin: 270000, opinion: '', savings: 0 }
+                ];
+
+                // 시트 생성 함수
+                function createSheet(sheetEbitda) {
+                    const resultHeaders = ['고정비', '변동비', '권고가', '권고가 총액', '기등록 최저 매입가', '동종산업군 최저 판매가', '의견', '반영시 절감금액(예상)'];
+                    const allHeaders = [...originalHeaders, ...resultHeaders];
+                    const resultData = [allHeaders];
+
+                    for (let i = 1; i < jsonData.length; i++) {
+                        const row = jsonData[i];
+                        if (!row || row.length === 0 || !row[0]) continue;
+
+                        const qty = parseFloat(row[0]) || 0;
+                        const purchasePrice = parseFloat(row[8]) || 0;
+
+                        const fixedCostVal = (fixedCostPct / 100) * purchasePrice;
+                        const variableCostVal = (variableCostPct / 100) * purchasePrice;
+                        const recommendedPrice = fixedCostVal + variableCostVal + purchasePrice + (sheetEbitda / 100) * purchasePrice;
+                        const recommendedTotal = recommendedPrice * qty;
+
+                        const demoIdx = i - 1;
+                        let minPurchase, industryMinPrice, opinion, savings;
+                        if (demoIdx < demoData.length) {
+                            minPurchase = demoData[demoIdx].minPurchase;
+                            industryMinPrice = demoData[demoIdx].industryMin;
+                            opinion = demoData[demoIdx].opinion;
+                            savings = demoData[demoIdx].savings;
+                        } else {
+                            minPurchase = Math.round(purchasePrice * 0.92);
+                            industryMinPrice = Math.round(recommendedPrice * 1.0);
+                            opinion = '적정 수준';
+                            savings = (purchasePrice - minPurchase) * qty;
+                        }
+
+                        const newRow = [...row.slice(0, originalHeaders.length),
+                            Math.round(fixedCostVal),
+                            Math.round(variableCostVal),
+                            Math.round(recommendedPrice),
+                            Math.round(recommendedTotal),
+                            minPurchase,
+                            industryMinPrice,
+                            opinion,
+                            Math.round(savings)
+                        ];
+                        resultData.push(newRow);
+                    }
+
+                    const ws = XLSX.utils.aoa_to_sheet(resultData);
+                    const totalCols = allHeaders.length;
+                    const originalColCount = originalHeaders.length;
+                    const numFmtCols = [0, 7, 8, 9, 10, 11, 22, 23, 24, 25, 26, 27, 29];
+
+                    for (let c = 0; c < totalCols; c++) {
+                        const cellRef = XLSX.utils.encode_cell({ r: 0, c: c });
+                        if (!ws[cellRef]) ws[cellRef] = { v: '', t: 's' };
+                        let headerColor = '616161'; // 기본 회색
+                        if (c >= originalColCount) headerColor = '1565C0'; // AI 결과 파란
+                        if (c === 26 || c === 27) headerColor = '0D47A1'; // AA, AB열 다른 파란색
+                        ws[cellRef].s = {
+                            font: { name: '맑은 고딕', bold: true, color: { rgb: 'FFFFFF' }, sz: 10 },
+                            fill: { fgColor: { rgb: headerColor } },
+                            alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
+                            border: { top: { style: 'thin', color: { rgb: '000000' } }, bottom: { style: 'thin', color: { rgb: '000000' } }, left: { style: 'thin', color: { rgb: '000000' } }, right: { style: 'thin', color: { rgb: '000000' } } }
+                        };
+                    }
+
+                    for (let r = 1; r < resultData.length; r++) {
+                        for (let c = 0; c < totalCols; c++) {
+                            const cellRef = XLSX.utils.encode_cell({ r: r, c: c });
+                            if (!ws[cellRef]) ws[cellRef] = { v: '', t: 's' };
+                            const isNum = numFmtCols.includes(c);
+                            if (c < originalColCount) {
+                                ws[cellRef].s = {
+                                    font: { name: '맑은 고딕', sz: 10 },
+                                    fill: { fgColor: { rgb: 'F5F5F5' } },
+                                    alignment: { vertical: 'center', horizontal: isNum ? 'right' : 'left' },
+                                    border: { top: { style: 'thin', color: { rgb: '000000' } }, bottom: { style: 'thin', color: { rgb: '000000' } }, left: { style: 'thin', color: { rgb: '000000' } }, right: { style: 'thin', color: { rgb: '000000' } } }
+                                };
+                            } else {
+                                ws[cellRef].s = {
+                                    font: { name: '맑은 고딕', sz: 10 },
+                                    alignment: { vertical: 'center', horizontal: isNum ? 'right' : 'center' },
+                                    border: { top: { style: 'thin', color: { rgb: '000000' } }, bottom: { style: 'thin', color: { rgb: '000000' } }, left: { style: 'thin', color: { rgb: '000000' } }, right: { style: 'thin', color: { rgb: '000000' } } }
+                                };
+                            }
+                            if (isNum && ws[cellRef].v !== '' && ws[cellRef].v !== undefined) {
+                                ws[cellRef].t = 'n';
+                                ws[cellRef].z = '#,##0_ ';
+                                ws[cellRef].s.numFmt = '#,##0_ ';
+                            }
+                        }
+                    }
+
+                    const colWidths = [];
+                    for (let c = 0; c < totalCols; c++) {
+                        if (c === 28) { colWidths.push({ wch: 40 }); }
+                        else if (c < originalColCount) { colWidths.push({ wch: 10 }); }
+                        else { colWidths.push({ wch: 14 }); }
+                    }
+                    ws['!cols'] = colWidths;
+                    ws['!sheetViews'] = [{ zoomScale: 90 }];
+                    return ws;
+                }
+
+                // 3개 시트 생성 (평균 → 전략적 → 소신 순서)
+                XLSX.utils.book_append_sheet(resultWb, createSheet(ebitdaAverage), '평균 견적 (EBITDA ' + ebitdaAverage + '%)');
+                XLSX.utils.book_append_sheet(resultWb, createSheet(ebitdaStrategic), '전략적 견적 (EBITDA ' + ebitdaStrategic + '%)');
+                XLSX.utils.book_append_sheet(resultWb, createSheet(ebitdaConfident), '소신 견적 (EBITDA ' + ebitdaConfident + '%)');
+
+                var wbout = XLSX.write(resultWb, { bookType: 'xlsx', type: 'array' });
+                var blob = new Blob([wbout], { type: 'application/octet-stream' });
+                var url = URL.createObjectURL(blob);
+                var a = document.createElement('a');
+                a.href = url;
+                a.download = 'AI_견적분석_결과.xlsx';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+                alert('분석 완료! 3개 시트(평균/전략적/소신)가 포함된 엑셀이 다운로드됩니다.');
+            };
+            reader.readAsArrayBuffer(file);
+        });
+    </script>
+</body>
+</html>
